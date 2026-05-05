@@ -45,11 +45,37 @@ async function getMCPClient(): Promise<Client> {
 
   // Step 3: Initialize session — Salesforce MCP requires listTools before any callTool
   await client.listTools();
-  
-  // Give the hosted server a moment to finish internal tenant initialization
-  await new Promise(resolve => setTimeout(resolve, 1000));
 
   return client;
+}
+
+// Unified helper to call MCP tools with automatic retry on "not initialized" errors
+async function callMCPToolWithRetry(toolName: string, args: any, attempt = 1): Promise<any> {
+  let client;
+  try {
+    client = await getMCPClient();
+    const result = await client.callTool({ name: toolName, arguments: args });
+    await client.close();
+
+    if (result.isError) {
+      const errorText = (result.content as {text:string}[])[0]?.text || '';
+      if (errorText.includes("not been initialized") && attempt < 3) {
+        console.log(`MCP server initialization lag on ${toolName}. Reconnecting (Attempt ${attempt + 1})...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        return callMCPToolWithRetry(toolName, args, attempt + 1);
+      }
+    }
+    return result;
+  } catch (err: any) {
+    if (client) try { await client.close(); } catch (e) {}
+    
+    if (err.message?.includes("not been initialized") && attempt < 3) {
+      console.log(`MCP transport lag on ${toolName}. Reconnecting (Attempt ${attempt + 1})...`);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      return callMCPToolWithRetry(toolName, args, attempt + 1);
+    }
+    throw err;
+  }
 }
 
 // Search Product2 by keyword
@@ -57,15 +83,8 @@ export async function searchProducts(query: string): Promise<Product[]> {
   if (!query || query.trim().length < 2) return [];
 
   try {
-    const client = await getMCPClient();
     const soql = `SELECT Id, Name, Description, ProductCode, Family FROM Product2 WHERE (Name LIKE '%${query}%' OR Family LIKE '%${query}%' OR ProductCode LIKE '%${query}%') LIMIT 20`;
-
-    const result = await client.callTool({
-      name: 'soqlQuery',
-      arguments: { q: soql }
-    });
-
-    await client.close();
+    const result = await callMCPToolWithRetry('soqlQuery', { q: soql });
 
     if (result.isError) {
       console.error('SOQL error:', (result.content as {text:string}[])[0]?.text);
@@ -91,15 +110,8 @@ export async function searchProducts(query: string): Promise<Product[]> {
 // Get a single Product2 by ID
 export async function getProductById(id: string): Promise<Product | null> {
   try {
-    const client = await getMCPClient();
     const soql = `SELECT Id, Name, Description, ProductCode, Family FROM Product2 WHERE Id = '${id}' LIMIT 1`;
-
-    const result = await client.callTool({
-      name: 'soqlQuery',
-      arguments: { q: soql }
-    });
-
-    await client.close();
+    const result = await callMCPToolWithRetry('soqlQuery', { q: soql });
 
     if (result.isError) return null;
 
@@ -138,14 +150,7 @@ export async function createLeadAction(formData: FormData): Promise<{ success: b
   };
 
   try {
-    const client = await getMCPClient();
-
-    const result = await client.callTool({
-      name: 'createSobjectRecord',
-      arguments: { "sobject-name": "Lead", "body": leadData }
-    });
-
-    await client.close();
+    const result = await callMCPToolWithRetry('createSobjectRecord', { "sobject-name": "Lead", "body": leadData });
 
     if (result.isError) {
       const errorMsg = (result.content as {text: string}[])[0]?.text || 'MCP error';
