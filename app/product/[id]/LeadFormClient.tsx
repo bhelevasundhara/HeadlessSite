@@ -62,7 +62,7 @@ export default function LeadFormClient({ product, imgSrc, searchQuery }: LeadFor
             <p className="text-sm text-gray-500 mb-3">SKU: {product.ProductCode}</p>
           )}
           <p className="text-sm text-gray-600 mb-3 leading-relaxed">
-            {product.Description || `${product.Name} — premium Bobcat equipment for your project needs.`}
+            {product.Description || `${product.Name} — premium equipment for your project needs.`}
           </p>
           {product.Family && (
             <p className="text-sm text-gray-700"><span className="font-medium">Category:</span> {product.Family}</p>

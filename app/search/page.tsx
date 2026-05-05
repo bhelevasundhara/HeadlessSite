@@ -33,7 +33,7 @@ function ProductCard({ product, query }: { product: Product; query: string }) {
           <p className="text-xs text-gray-500 mb-2">SKU: {product.ProductCode}</p>
         )}
         <p className="text-sm text-gray-600 mb-4 flex-1 line-clamp-2">
-          {product.Description || `${product.Name} — premium Bobcat equipment for your project needs.`}
+          {product.Description || `${product.Name} — premium equipment for your project needs.`}
         </p>
         <Link
           href={`/product/${product.Id}?from=${encodeURIComponent(query)}`}
@@ -60,7 +60,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
           type="text"
           defaultValue={query}
           placeholder="Search for products..."
-          className="flex-1 px-5 py-3 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#e63329] focus:border-transparent"
+          className="flex-1 px-5 py-3 rounded-lg border border-gray-300 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#e63329] focus:border-transparent"
         />
         <button
           type="submit"

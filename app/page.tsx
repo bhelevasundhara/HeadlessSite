@@ -33,7 +33,7 @@ export default function HomePage() {
               name="q"
               type="text"
               placeholder="Search for products (e.g. loader, excavator, parts)"
-              className="flex-1 px-5 py-3.5 rounded-lg border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#e63329] focus:border-transparent shadow-sm"
+              className="flex-1 px-5 py-3.5 rounded-lg border border-gray-300 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#e63329] focus:border-transparent shadow-sm"
             />
             <button
               type="submit"

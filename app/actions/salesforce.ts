@@ -40,7 +40,7 @@ async function getMCPClient(): Promise<Client> {
     requestInit: { headers: { 'Authorization': `Bearer ${accessToken}` } }
   });
 
-  const client = new Client({ name: 'bobcat-headless-site', version: '1.0.0' }, { capabilities: {} });
+  const client = new Client({ name: 'abc-heavy-equipments', version: '1.0.0' }, { capabilities: {} });
   await client.connect(transport);
 
   // Step 3: Initialize session — Salesforce MCP requires listTools before any callTool
