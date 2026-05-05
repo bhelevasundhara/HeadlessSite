@@ -24,6 +24,8 @@ export default function LeadFormClient({ product, imgSrc, searchQuery }: LeadFor
     setError(null);
 
     const formData = new FormData(e.currentTarget);
+    formData.set('productId', product.Id);
+    
     // Attach product info in message
     const existingMsg = formData.get('message') as string || '';
     formData.set('message', `Interested in: ${product.Name} (SKU: ${product.ProductCode || 'N/A'})\n\n${existingMsg}`);

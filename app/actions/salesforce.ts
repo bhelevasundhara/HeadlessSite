@@ -11,7 +11,14 @@ export interface Product {
   Family: string | null;
 }
 
+// Cache the client globally so we don't force Salesforce to re-initialize on every click
+let globalMcpClient: Client | null = null;
+
 async function getMCPClient(): Promise<Client> {
+  if (globalMcpClient) {
+    return globalMcpClient;
+  }
+
   const instanceUrl = process.env.SF_INSTANCE_URL!;
   const clientId = process.env.SF_CLIENT_ID!;
   const clientSecret = process.env.SF_CLIENT_SECRET!;
@@ -46,6 +53,7 @@ async function getMCPClient(): Promise<Client> {
   // Step 3: Initialize session — Salesforce MCP requires listTools before any callTool
   await client.listTools();
 
+  globalMcpClient = client;
   return client;
 }
 
@@ -55,19 +63,19 @@ async function callMCPToolWithRetry(toolName: string, args: any, attempt = 1): P
   try {
     client = await getMCPClient();
     const result = await client.callTool({ name: toolName, arguments: args });
-    await client.close();
 
     if (result.isError) {
       const errorText = (result.content as {text:string}[])[0]?.text || '';
       if (errorText.includes("not been initialized") && attempt < 3) {
         console.log(`MCP server initialization lag on ${toolName}. Reconnecting (Attempt ${attempt + 1})...`);
+        globalMcpClient = null; // Clear cache to force true reconnect
         await new Promise(resolve => setTimeout(resolve, 2000));
         return callMCPToolWithRetry(toolName, args, attempt + 1);
       }
     }
     return result;
   } catch (err: any) {
-    if (client) try { await client.close(); } catch (e) {}
+    globalMcpClient = null; // Clear cache on transport death
     
     if (err.message?.includes("not been initialized") && attempt < 3) {
       console.log(`MCP transport lag on ${toolName}. Reconnecting (Attempt ${attempt + 1})...`);
@@ -138,8 +146,9 @@ export async function createLeadAction(formData: FormData): Promise<{ success: b
   const nameParts = fullName.trim().split(' ');
   const firstName = nameParts.length > 1 ? nameParts.slice(0, -1).join(' ') : '';
   const lastName = nameParts.length > 0 ? nameParts[nameParts.length - 1] : fullName;
+  const productId = formData.get('productId') as string;
 
-  const leadData = {
+  const leadData: Record<string, any> = {
     FirstName: firstName,
     LastName: lastName || 'Unknown',
     Email: formData.get('email') as string,
@@ -148,6 +157,10 @@ export async function createLeadAction(formData: FormData): Promise<{ success: b
     Description: formData.get('message') as string,
     LeadSource: 'Web',
   };
+
+  if (productId) {
+    leadData.Interested_Product__c = productId;
+  }
 
   try {
     const result = await callMCPToolWithRetry('createSobjectRecord', { "sobject-name": "Lead", "body": leadData });
